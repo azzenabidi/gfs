@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-compute-docker"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "bollard",
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-config"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "serde",
@@ -1042,7 +1042,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-domain"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1060,7 +1060,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-mcp"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "atty",
@@ -1083,7 +1083,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-storage-apfs"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-storage-btrfs"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1106,7 +1106,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-storage-file"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1118,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-telemetry"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "gfs-domain",
@@ -1131,7 +1131,7 @@ dependencies = [
 
 [[package]]
 name = "gfs-website"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "console_error_panic_hook",
  "leptos",
