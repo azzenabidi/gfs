@@ -19,7 +19,7 @@ Options:
     -b, --binary <path>     Install from a local binary instead of downloading
         --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
         --skip-docker-check Skip Docker installation check and prompt
-        --skip-ai-tools     Skip AI coding tools detection and injection (Cursor, Claude, OpenCode)
+        --skip-ai-tools     Skip AI coding tools detection and injection (Cursor, Claude, OpenCode, Qwery)
 
 Examples:
     curl -fsSL https://gfs.guepard.run/install | bash
@@ -214,6 +214,10 @@ detect_ai_coding_tools() {
     if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" ]] || command -v opencode >/dev/null 2>&1; then
         detected+=("OpenCode")
     fi
+    # Qwery
+    if [[ -d "$HOME/.qwery" ]] || command -v qwery >/dev/null 2>&1 || command -v qwery-tui >/dev/null 2>&1; then
+        detected+=("Qwery")
+    fi
     printf '%s\n' "${detected[@]}"
 }
 
@@ -228,7 +232,7 @@ print_ai_tools_detection_summary() {
             echo -e "✅ ${MUTED}${tool} detected.${NC}"
         done
     else
-        echo -e "${MUTED}No AI coding tools detected (Cursor, Claude, OpenCode).${NC}"
+        echo -e "${MUTED}No AI coding tools detected (Cursor, Claude, OpenCode, Qwery).${NC}"
     fi
 }
 
@@ -666,6 +670,16 @@ inject_ai_tools() {
                 else
                     [[ ! -f "$opencode_config" ]] && echo "{\"mcp\": {$gfs_mcp_opencode_json}}" > "$opencode_config" && mcp_configured+=("OpenCode")
                 fi
+                ;;
+            Qwery)
+                # Qwery loads skills from ~/.qwery/skills/ and agents from ~/.qwery/agents/
+                # (SKILL.md files discovered recursively). Its MCP integration uses an HTTP
+                # server URL (QWERY_MCP_SERVER_URL), not a command/args config file, so we
+                # only inject the file-based skills and agent here.
+                mkdir -p "$HOME/.qwery/skills/use-gfs-cli" "$HOME/.qwery/skills/use-gfs-mcp" "$HOME/.qwery/agents"
+                [[ -f "$tmp_dir/skills/use-gfs-cli/SKILL.md" ]] && cp "$tmp_dir/skills/use-gfs-cli/SKILL.md" "$HOME/.qwery/skills/use-gfs-cli/" && injected+=("$HOME/.qwery/skills/use-gfs-cli/SKILL.md")
+                [[ -f "$tmp_dir/skills/use-gfs-mcp/SKILL.md" ]] && cp "$tmp_dir/skills/use-gfs-mcp/SKILL.md" "$HOME/.qwery/skills/use-gfs-mcp/" && injected+=("$HOME/.qwery/skills/use-gfs-mcp/SKILL.md")
+                [[ -f "$tmp_dir/agents/qwery-agent.md" ]] && cp "$tmp_dir/agents/qwery-agent.md" "$HOME/.qwery/agents/" && injected+=("$HOME/.qwery/agents/qwery-agent.md")
                 ;;
         esac
     done

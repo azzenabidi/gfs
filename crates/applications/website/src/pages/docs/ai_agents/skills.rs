@@ -31,6 +31,16 @@ pub fn AiAgentsSkills() -> impl IntoView {
             </ul>
             <p><a href="https://github.com/Guepard-Corp/gfs/blob/main/skills/use-gfs-mcp/SKILL.md" target="_blank">"View use-gfs-mcp skill"</a></p>
 
+            <h2>"Automatic Installation"</h2>
+            <p>"The official install script detects supported AI coding tools and copies the GFS skills into each tool's skills directory automatically. No manual setup is required when a tool is detected:"</p>
+            <ul>
+                <li><strong>"Cursor"</strong>" — "<code>"~/.cursor/skills/"</code></li>
+                <li><strong>"Claude"</strong>" — "<code>"~/.claude/skills/"</code></li>
+                <li><strong>"OpenCode"</strong>" — "<code>"~/.config/opencode/skills/"</code></li>
+                <li><strong>"Qwery"</strong>" — "<code>"~/.qwery/skills/"</code>" (the Qwery Agent is also installed to "<code>"~/.qwery/agents/"</code>")"</li>
+            </ul>
+            <p>"Run "<code>"curl -fsSL https://gfs.guepard.run/install | bash"</code>" to install GFS and inject the skills. Pass "<code>"--skip-ai-tools"</code>" to skip detection and injection."</p>
+
             <h2>"See Also"</h2>
             <ul>
                 <li><a href="/docs/ai-agents/subagents">"Subagents"</a>" - Specialized agents for database tasks"</li>

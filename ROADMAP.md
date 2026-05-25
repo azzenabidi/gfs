@@ -16,7 +16,7 @@ This roadmap outlines the planned features and milestones for GFS. Dates and fea
 - ✅ Databases: PostgreSQL, MySQL, ClickHouse
 - ✅ CLI: `init`, `commit`, `log`, `status`, `export`, `import`, `query`, `schema`
 - ✅ Schema extraction and schema diff
-- ✅ Skills and AI tools (Cursor, Claude, OpenCode)
+- ✅ Skills and AI tools (Cursor, Claude, OpenCode, Qwery)
 - ✅ Installer and multi-platform binaries (Linux, macOS, Windows)
 - ✅ Telemetry and website
 - ✅ Conventional-commit release notes on GitHub
