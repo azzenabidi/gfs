@@ -858,6 +858,7 @@ async fn do_init(args: &serde_json::Value) -> Result<CallToolResult, McpError> {
             None,
             DatabaseCredentials::default(),
             None,
+            Default::default(),
         )
         .await
         .map_err(|e| to_error_data(e.to_string()))?;
@@ -1075,7 +1076,7 @@ async fn start_or_restart(
             .remove_instance(instance_id)
             .await
             .map_err(|e| to_error_data(e.to_string()))?;
-        let mut definition = provider.definition();
+        let mut definition = provider.definition_with_overrides(&config.compute_params());
         if let Some(ref env) = config.environment
             && !env.database_version.is_empty()
         {
