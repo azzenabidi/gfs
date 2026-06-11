@@ -717,13 +717,31 @@ mod tests {
 
         let provisioned = compute.provisioned_labels.lock().unwrap().clone().unwrap();
         // Caller-supplied labels are threaded through to provision().
-        assert_eq!(provisioned.get("guepard.org_id").map(String::as_str), Some("org-1"));
-        assert_eq!(provisioned.get("guepard.database_id").map(String::as_str), Some("db-9"));
+        assert_eq!(
+            provisioned.get("guepard.org_id").map(String::as_str),
+            Some("org-1")
+        );
+        assert_eq!(
+            provisioned.get("guepard.database_id").map(String::as_str),
+            Some("db-9")
+        );
         // GFS-owned discovery labels are added automatically.
-        assert_eq!(provisioned.get("gfs.managed").map(String::as_str), Some("true"));
-        assert_eq!(provisioned.get("gfs.role").map(String::as_str), Some("source"));
-        assert_eq!(provisioned.get("gfs.provider").map(String::as_str), Some("postgres"));
-        assert_eq!(provisioned.get("gfs.provider_version").map(String::as_str), Some("17"));
+        assert_eq!(
+            provisioned.get("gfs.managed").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(
+            provisioned.get("gfs.role").map(String::as_str),
+            Some("source")
+        );
+        assert_eq!(
+            provisioned.get("gfs.provider").map(String::as_str),
+            Some("postgres")
+        );
+        assert_eq!(
+            provisioned.get("gfs.provider_version").map(String::as_str),
+            Some("17")
+        );
         assert!(provisioned.contains_key("gfs.repo"));
     }
 
@@ -758,12 +776,18 @@ mod tests {
             .unwrap();
 
         let provisioned = compute.provisioned_labels.lock().unwrap().clone().unwrap();
-        assert_eq!(provisioned.get("gfs.role").map(String::as_str), Some("clone"));
+        assert_eq!(
+            provisioned.get("gfs.role").map(String::as_str),
+            Some("clone")
+        );
         assert_eq!(
             provisioned.get("gfs.remote").map(String::as_str),
             Some("db.example.com:5432")
         );
-        assert_eq!(provisioned.get("gfs.managed").map(String::as_str), Some("true"));
+        assert_eq!(
+            provisioned.get("gfs.managed").map(String::as_str),
+            Some("true")
+        );
     }
 
     #[tokio::test]

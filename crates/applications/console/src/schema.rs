@@ -19,7 +19,11 @@ pub struct SchemaSnapshot {
 }
 
 fn unreachable(error: String) -> SchemaSnapshot {
-    SchemaSnapshot { reachable: false, error: Some(error), metadata: None }
+    SchemaSnapshot {
+        reachable: false,
+        error: Some(error),
+        metadata: None,
+    }
 }
 
 /// Extract the schema for the repo at `repo` via `ExtractSchemaUseCase`.
@@ -33,8 +37,15 @@ pub async fn extract(repo: &str) -> SchemaSnapshot {
         return unreachable(format!("provider registry: {e}"));
     }
 
-    match ExtractSchemaUseCase::new(compute, registry).run(Path::new(repo)).await {
-        Ok(out) => SchemaSnapshot { reachable: true, error: None, metadata: Some(out.metadata) },
+    match ExtractSchemaUseCase::new(compute, registry)
+        .run(Path::new(repo))
+        .await
+    {
+        Ok(out) => SchemaSnapshot {
+            reachable: true,
+            error: None,
+            metadata: Some(out.metadata),
+        },
         Err(e) => unreachable(e.to_string()),
     }
 }

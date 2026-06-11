@@ -98,9 +98,16 @@ impl ServerCertVerifier for NoVerify {
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
         use SignatureScheme::*;
         vec![
-            RSA_PKCS1_SHA256, RSA_PKCS1_SHA384, RSA_PKCS1_SHA512,
-            ECDSA_NISTP256_SHA256, ECDSA_NISTP384_SHA384, ECDSA_NISTP521_SHA512,
-            RSA_PSS_SHA256, RSA_PSS_SHA384, RSA_PSS_SHA512, ED25519,
+            RSA_PKCS1_SHA256,
+            RSA_PKCS1_SHA384,
+            RSA_PKCS1_SHA512,
+            ECDSA_NISTP256_SHA256,
+            ECDSA_NISTP384_SHA384,
+            ECDSA_NISTP521_SHA512,
+            RSA_PSS_SHA256,
+            RSA_PSS_SHA384,
+            RSA_PSS_SHA512,
+            ED25519,
         ]
     }
 }

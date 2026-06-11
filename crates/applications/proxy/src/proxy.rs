@@ -28,7 +28,9 @@ pub async fn run(cfg: Config) -> anyhow::Result<()> {
         return crate::discovery::run(cfg).await;
     }
     let backend = cfg.backend.clone().ok_or_else(|| {
-        anyhow::anyhow!("--backend is required (build with the `discovery` feature to auto-discover instead)")
+        anyhow::anyhow!(
+            "--backend is required (build with the `discovery` feature to auto-discover instead)"
+        )
     })?;
     serve_backend(cfg, backend).await
 }
@@ -108,16 +110,16 @@ async fn handle_conn(
         buf.extend_from_slice(&tmp[..n]);
     };
 
-    if kind == StartupKind::SslRequest {
-        if let Some(acceptor) = acceptor {
-            buf.drain(0..len); // consume the SSLRequest
-            client.write_all(b"S").await?;
-            let tls_stream = acceptor.accept(client).await?;
-            // After the handshake the StartupMessage arrives encrypted; `buf` is
-            // empty (the client waits for 'S' before the TLS handshake).
-            return serve(tls_stream, server, buf, strip_plus).await;
-        }
-        // No TLS configured → `serve` will reply 'N' and continue in plaintext.
+    // No TLS configured → `serve` will reply 'N' and continue in plaintext.
+    if kind == StartupKind::SslRequest
+        && let Some(acceptor) = acceptor
+    {
+        buf.drain(0..len); // consume the SSLRequest
+        client.write_all(b"S").await?;
+        let tls_stream = acceptor.accept(client).await?;
+        // After the handshake the StartupMessage arrives encrypted; `buf` is
+        // empty (the client waits for 'S' before the TLS handshake).
+        return serve(tls_stream, server, buf, strip_plus).await;
     }
 
     serve(client, server, buf, strip_plus).await
@@ -173,7 +175,10 @@ enum Negotiated {
 /// Read startup packets until a real StartupMessage (or CancelRequest) is seen.
 /// SSL/GSS requests are refused with `N` (TLS, if any, was handled earlier in
 /// `handle_conn`), after which the client retries unencrypted.
-async fn negotiate_startup<C>(client: &mut C, buf: &mut Vec<u8>) -> anyhow::Result<Option<Negotiated>>
+async fn negotiate_startup<C>(
+    client: &mut C,
+    buf: &mut Vec<u8>,
+) -> anyhow::Result<Option<Negotiated>>
 where
     C: AsyncRead + AsyncWrite + Unpin,
 {
@@ -235,7 +240,8 @@ where
 {
     if !seed.is_empty() {
         w.write_all(&seed).await?;
-        metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "c2s").increment(seed.len() as u64);
+        metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "c2s")
+            .increment(seed.len() as u64);
     }
     raw_copy(r, w, "c2s").await
 }
@@ -263,8 +269,7 @@ where
             continue;
         }
         buf.extend_from_slice(&tmp[..n]);
-        loop {
-            let Some((typ, total)) = pg::peek_header(&buf) else { break };
+        while let Some((typ, total)) = pg::peek_header(&buf) {
             if total < 5 || buf.len() < total {
                 if total < 5 {
                     done = true; // malformed; stop inspecting
@@ -272,12 +277,14 @@ where
                 break;
             }
             let out: Vec<u8> = match (typ, pg::auth_type(&buf[..total])) {
-                (b'R', Some(10)) => pg::strip_scram_plus(&buf[..total])
-                    .unwrap_or_else(|| buf[..total].to_vec()),
+                (b'R', Some(10)) => {
+                    pg::strip_scram_plus(&buf[..total]).unwrap_or_else(|| buf[..total].to_vec())
+                }
                 _ => buf[..total].to_vec(),
             };
             w.write_all(&out).await?;
-            metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "s2c").increment(out.len() as u64);
+            metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "s2c")
+                .increment(out.len() as u64);
             // AuthenticationOk / ReadyForQuery / ErrorResponse → auth phase over.
             if matches!((typ, pg::auth_type(&buf[..total])), (b'R', Some(0)))
                 || typ == b'Z'
@@ -292,7 +299,8 @@ where
         }
         if done && !buf.is_empty() {
             w.write_all(&buf).await?;
-            metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "s2c").increment(buf.len() as u64);
+            metrics::counter!(telemetry::BYTES_TOTAL, "direction" => "s2c")
+                .increment(buf.len() as u64);
             buf.clear();
         }
     }

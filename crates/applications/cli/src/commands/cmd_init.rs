@@ -17,7 +17,6 @@ use crate::cli_utils::get_repo_dir;
 use crate::output::{cyan, dimmed, green};
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 pub async fn init(
     path: Option<PathBuf>,
     database_provider: Option<String>,

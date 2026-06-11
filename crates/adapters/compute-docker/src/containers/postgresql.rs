@@ -1090,22 +1090,37 @@ mod tests {
     #[test]
     fn clone_bootstrap_sql_substitutes_remote() {
         let sql = build_clone_bootstrap_sql(&sample_remote());
-        // FDW server + mapping carry the remote connection params.
-        assert!(sql.contains("OPTIONS (host 'rds.example.com', port '5432', dbname 'shop')"));
+        // FDW server + mapping carry the remote connection params (plus the
+        // pushdown/batching knobs: use_remote_estimate + fetch_size).
+        assert!(sql.contains(
+            "OPTIONS (host 'rds.example.com', port '5432', dbname 'shop',\n           \
+             use_remote_estimate 'true', fetch_size '10000')"
+        ));
         assert!(sql.contains("OPTIONS (user 'reader', password 'p@ss')"));
         // Requested schemas become an array literal driving the per-schema import.
         assert!(sql.contains("ARRAY['public']::text[]"));
         // Per-table import (LIMIT TO) so one bad table cannot abort the clone.
-        assert!(sql.contains("IMPORT FOREIGN SCHEMA %I LIMIT TO (%I) FROM SERVER gfs_remote_srv INTO %I"));
+        assert!(
+            sql.contains(
+                "IMPORT FOREIGN SCHEMA %I LIMIT TO (%I) FROM SERVER gfs_remote_srv INTO %I"
+            )
+        );
         // Resilience hooks: skip un-importable tables / overlays.
         assert!(sql.contains("CREATE EXTENSION IF NOT EXISTS %I"));
         assert!(sql.contains("to_regclass(fq_remote) IS NULL"));
         // dblink introspection connection string is present.
-        assert!(sql.contains("host=rds.example.com port=5432 dbname=shop user=reader password=p@ss"));
+        assert!(
+            sql.contains("host=rds.example.com port=5432 dbname=shop user=reader password=p@ss")
+        );
         // No leftover placeholders (the template still legitimately contains the
         // reserved `gfs_ovl__` / `__deleted` names, so check the tokens directly).
         for ph in [
-            "__RHOST__", "__RPORT__", "__RDB__", "__RUSER__", "__RPASS__", "__CONN__",
+            "__RHOST__",
+            "__RPORT__",
+            "__RDB__",
+            "__RUSER__",
+            "__RPASS__",
+            "__CONN__",
             "__SCHEMAS_ARRAY__",
         ] {
             assert!(!sql.contains(ph), "leftover placeholder: {ph}");
@@ -1218,7 +1233,10 @@ mod tests {
             .iter()
             .rposition(|a| a == "max_connections=200")
             .expect("override present");
-        assert!(override_pos > last_default, "override must come after default");
+        assert!(
+            override_pos > last_default,
+            "override must come after default"
+        );
     }
 
     #[test]
@@ -1238,16 +1256,24 @@ mod tests {
             .clone_bootstrap_spec(&local_params(), &sample_remote())
             .unwrap();
         // Connects to the LOCAL database.
-        assert!(spec.command.contains("psql -h 172.17.0.2 -p 5432 -U postgres -d gfs"));
+        assert!(
+            spec.command
+                .contains("psql -h 172.17.0.2 -p 5432 -U postgres -d gfs")
+        );
         assert!(spec.command.contains("<<'GFS_CLONE_BOOTSTRAP'"));
         // Local password is supplied via PGPASSWORD on the sidecar.
-        assert!(spec.definition.env.iter().any(|e| e.name == "PGPASSWORD"
-            && e.default.as_deref() == Some("localpw")));
+        assert!(
+            spec.definition
+                .env
+                .iter()
+                .any(|e| e.name == "PGPASSWORD" && e.default.as_deref() == Some("localpw"))
+        );
         assert_eq!(spec.definition.image, provider.definition().image);
         // The v17-only `transaction_timeout` GUC is stripped from the dump before
         // replay so a pre-v17 local server doesn't choke on it.
-        assert!(spec
-            .command
-            .contains("sed -i '/^SET transaction_timeout/d' /tmp/gfs_faithful.sql"));
+        assert!(
+            spec.command
+                .contains("sed -i '/^SET transaction_timeout/d' /tmp/gfs_faithful.sql")
+        );
     }
 }

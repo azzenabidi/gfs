@@ -57,8 +57,14 @@ pub async fn clone(req: CloneRequest) -> ActionResult {
     )
     .await
     {
-        Ok(()) => ActionResult { ok: true, error: None },
-        Err(e) => ActionResult { ok: false, error: Some(e.to_string()) },
+        Ok(()) => ActionResult {
+            ok: true,
+            error: None,
+        },
+        Err(e) => ActionResult {
+            ok: false,
+            error: Some(e.to_string()),
+        },
     }
 }
 
@@ -76,7 +82,13 @@ pub async fn compute(req: ComputeRequest) -> ActionResult {
         }
     };
     match gfs_cli::commands::cmd_compute::run(Some(PathBuf::from(req.repo)), action, true).await {
-        Ok(()) => ActionResult { ok: true, error: None },
-        Err(e) => ActionResult { ok: false, error: Some(e.to_string()) },
+        Ok(()) => ActionResult {
+            ok: true,
+            error: None,
+        },
+        Err(e) => ActionResult {
+            ok: false,
+            error: Some(e.to_string()),
+        },
     }
 }

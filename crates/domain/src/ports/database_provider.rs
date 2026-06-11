@@ -219,7 +219,10 @@ pub trait DatabaseProvider: Send + Sync {
     /// engines where the last occurrence wins they override the defaults.
     ///
     /// Default: returns nothing (provider does not support overrides).
-    fn render_param_overrides(&self, params: &BTreeMap<String, String>) -> Vec<DatabaseProviderArg> {
+    fn render_param_overrides(
+        &self,
+        params: &BTreeMap<String, String>,
+    ) -> Vec<DatabaseProviderArg> {
         let _ = params;
         Vec::new()
     }
@@ -229,16 +232,17 @@ pub trait DatabaseProvider: Send + Sync {
     /// `[compute.params]` is (re-)applied on every init/checkout/restart.
     fn definition_with_overrides(&self, params: &BTreeMap<String, String>) -> ComputeDefinition {
         let mut def = self.definition();
-        def.args
-            .extend(self.render_param_overrides(params).into_iter().flat_map(
-                |a| {
+        def.args.extend(
+            self.render_param_overrides(params)
+                .into_iter()
+                .flat_map(|a| {
                     if a.value.is_empty() {
                         vec![a.name]
                     } else {
                         vec![a.name, a.value]
                     }
-                },
-            ));
+                }),
+        );
         def
     }
 

@@ -117,7 +117,10 @@ impl DockerCompute {
     /// running or the socket path has wrong permissions).
     pub fn new() -> std::result::Result<Self, ComputeError> {
         match bollard::Docker::connect_with_local_defaults() {
-            Ok(docker) => Ok(Self { docker, platform: None }),
+            Ok(docker) => Ok(Self {
+                docker,
+                platform: None,
+            }),
             Err(default_err) => {
                 #[cfg(unix)]
                 if let Some(socket_path) = Self::podman_socket_path() {
@@ -128,7 +131,10 @@ impl DockerCompute {
                         120,
                         bollard::API_DEFAULT_VERSION,
                     ) {
-                        return Ok(Self { docker, platform: None });
+                        return Ok(Self {
+                            docker,
+                            platform: None,
+                        });
                     }
 
                     let socket_uri = format!("unix://{}", socket);
@@ -137,7 +143,10 @@ impl DockerCompute {
                         120,
                         bollard::API_DEFAULT_VERSION,
                     ) {
-                        return Ok(Self { docker, platform: None });
+                        return Ok(Self {
+                            docker,
+                            platform: None,
+                        });
                     }
                 }
 
@@ -898,10 +907,9 @@ impl Compute for DockerCompute {
             .create_image(Some(pull_opts), None, None)
             .try_collect::<Vec<_>>()
             .await
+            && self.docker.inspect_image(&definition.image).await.is_err()
         {
-            if self.docker.inspect_image(&definition.image).await.is_err() {
-                return Err(classify(definition.image.as_str(), e));
-            }
+            return Err(classify(definition.image.as_str(), e));
         }
 
         // 2. Resolve the network of the linked instance so the task can reach it.

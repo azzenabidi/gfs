@@ -89,7 +89,12 @@ pub fn strip_scram_plus(full_msg: &[u8]) -> Option<Vec<u8>> {
 /// Auth-type of a backend `'R'` message (the int32 after type+len), if present.
 pub fn auth_type(full_msg: &[u8]) -> Option<i32> {
     if full_msg.first() == Some(&b'R') && full_msg.len() >= 9 {
-        Some(i32::from_be_bytes([full_msg[5], full_msg[6], full_msg[7], full_msg[8]]))
+        Some(i32::from_be_bytes([
+            full_msg[5],
+            full_msg[6],
+            full_msg[7],
+            full_msg[8],
+        ]))
     } else {
         None
     }
@@ -132,5 +137,4 @@ mod tests {
         // No PLUS, and no rewrite when only plain SCRAM is offered.
         assert!(strip_scram_plus(&want).is_none());
     }
-
 }

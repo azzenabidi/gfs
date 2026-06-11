@@ -17,9 +17,7 @@ use std::sync::Arc;
 
 use crate::model::config::GfsConfig;
 use crate::ports::compute::{Compute, ComputeError, EnvVar, InstanceId};
-use crate::ports::database_provider::{
-    ConnectionParams, DatabaseProviderRegistry, RemoteSource,
-};
+use crate::ports::database_provider::{ConnectionParams, DatabaseProviderRegistry, RemoteSource};
 
 // ---------------------------------------------------------------------------
 // Error

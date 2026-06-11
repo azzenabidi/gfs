@@ -6,7 +6,7 @@
 //!   - `~/.gfs/proxy.pid`   the running daemon's PID
 //!   - `~/.gfs/proxy.log`   stdout+stderr, appended
 //!   - `~/.gfs/proxy.args`  JSON `Vec<String>` of the flags last used to start it,
-//!                          so `restart` rejoues them verbatim.
+//!     so `restart` rejoues them verbatim.
 //!
 //! Defaults to **Docker auto-discovery** (no `--backend`) with warming on; pass
 //! `--backend host:port` to front a single backend instead.
@@ -107,9 +107,7 @@ fn build_proxy_args(opts: &ProxyStartOpts) -> Vec<String> {
 fn start(state: &State, opts: ProxyStartOpts) -> Result<()> {
     if let Some(pid) = read_pid(&state.pid_file)? {
         if process_exists(pid) {
-            anyhow::bail!(
-                "proxy daemon already running (PID {pid}). Use `gfs proxy stop` first."
-            );
+            anyhow::bail!("proxy daemon already running (PID {pid}). Use `gfs proxy stop` first.");
         }
         fs::remove_file(&state.pid_file).ok();
     }
@@ -205,8 +203,7 @@ fn stop(state: &State) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn status(state: &State) -> Result<()> {
-    let running_pid = read_pid(&state.pid_file)?
-        .and_then(|pid| process_exists(pid).then_some(pid));
+    let running_pid = read_pid(&state.pid_file)?.and_then(|pid| process_exists(pid).then_some(pid));
 
     let saved_args: Option<Vec<String>> = fs::read_to_string(&state.args_file)
         .ok()
@@ -226,7 +223,10 @@ fn status(state: &State) -> Result<()> {
             print_clones(&metrics_addr);
         }
         None if state.pid_file.exists() => {
-            println!("Daemon: stopped (stale PID file at {})", state.pid_file.display());
+            println!(
+                "Daemon: stopped (stale PID file at {})",
+                state.pid_file.display()
+            );
             println!("  → `gfs proxy stop` to clean it up, or `gfs proxy start` to restart");
         }
         None => {
@@ -274,20 +274,17 @@ fn print_clones(metrics_addr: &str) {
     };
     let arr = body.get("clones").and_then(|v| v.as_array());
     match arr {
-        Some(a) if a.is_empty() => println!("\nFronted clones: (none yet — discovery scans Docker periodically)"),
+        Some(a) if a.is_empty() => {
+            println!("\nFronted clones: (none yet — discovery scans Docker periodically)")
+        }
         Some(a) => {
             println!("\nFronted clones ({}):", a.len());
             for c in a {
                 let name = c.get("container").and_then(|v| v.as_str()).unwrap_or("?");
                 let backend = c.get("backend").and_then(|v| v.as_str()).unwrap_or("?");
                 let port = c.get("listen_port").and_then(|v| v.as_u64()).unwrap_or(0);
-                let remote = c
-                    .get("remote")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                println!(
-                    "  - {name}: localhost:{port}  →  {backend}   (remote: {remote})"
-                );
+                let remote = c.get("remote").and_then(|v| v.as_str()).unwrap_or("?");
+                println!("  - {name}: localhost:{port}  →  {backend}   (remote: {remote})");
             }
         }
         None => println!("\nFronted clones: <unexpected /clones payload>"),
@@ -346,19 +343,22 @@ fn resolve_proxy_binary() -> Result<PathBuf> {
         if p.exists() {
             return Ok(p);
         }
-        anyhow::bail!("GFS_PROXY_BIN set to {} but the file does not exist", p.display());
+        anyhow::bail!(
+            "GFS_PROXY_BIN set to {} but the file does not exist",
+            p.display()
+        );
     }
     let name = if cfg!(windows) {
         "guepard-proxy-v2.exe"
     } else {
         "guepard-proxy-v2"
     };
-    if let Ok(cur) = std::env::current_exe() {
-        if let Some(parent) = cur.parent() {
-            let sibling = parent.join(name);
-            if sibling.exists() {
-                return Ok(sibling);
-            }
+    if let Ok(cur) = std::env::current_exe()
+        && let Some(parent) = cur.parent()
+    {
+        let sibling = parent.join(name);
+        if sibling.exists() {
+            return Ok(sibling);
         }
     }
     // Last resort: bare name. Will only work if it's on PATH; if not, the spawn
@@ -373,7 +373,9 @@ fn resolve_proxy_binary() -> Result<PathBuf> {
 }
 
 fn which_on_path(name: &str) -> bool {
-    let Some(path) = std::env::var_os("PATH") else { return false };
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
     std::env::split_paths(&path).any(|p| p.join(name).exists())
 }
 

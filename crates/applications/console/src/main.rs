@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
-use axum::http::{header, StatusCode, Uri};
+use axum::http::{StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -25,8 +25,8 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::actions::{ActionResult, CloneRequest, ComputeRequest};
-use crate::docker::{list_databases, GfsDatabase};
-use crate::telemetry::{snapshot, TelemetrySnapshot};
+use crate::docker::{GfsDatabase, list_databases};
+use crate::telemetry::{TelemetrySnapshot, snapshot};
 
 #[derive(Parser, Debug)]
 #[command(name = "gfs-console", about = "GFS web console backend")]
@@ -35,7 +35,11 @@ struct Args {
     #[arg(long, env = "GFS_CONSOLE_LISTEN", default_value = "127.0.0.1:7070")]
     listen: SocketAddr,
     /// Warming proxy metrics/clones base URL.
-    #[arg(long, env = "GFS_CONSOLE_PROXY", default_value = "http://127.0.0.1:9090")]
+    #[arg(
+        long,
+        env = "GFS_CONSOLE_PROXY",
+        default_value = "http://127.0.0.1:9090"
+    )]
     proxy_url: String,
 }
 
@@ -50,8 +54,7 @@ struct AppState {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -110,15 +113,16 @@ async fn static_handler(uri: Uri) -> Response {
             let mime = content.metadata.mimetype();
             ([(header::CONTENT_TYPE, mime)], content.data).into_response()
         }
-        None => (StatusCode::NOT_FOUND, "frontend not built (run npm run build in web/)")
+        None => (
+            StatusCode::NOT_FOUND,
+            "frontend not built (run npm run build in web/)",
+        )
             .into_response(),
     }
 }
 
 /// `GET /api/databases` — every `gfs.managed=true` container (sources + clones).
-async fn databases(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<GfsDatabase>>, ApiError> {
+async fn databases(State(state): State<AppState>) -> Result<Json<Vec<GfsDatabase>>, ApiError> {
     Ok(Json(list_databases(&state.docker).await?))
 }
 
@@ -126,7 +130,9 @@ async fn databases(
 /// `remote` (the upstream they overlay). This is the clone↔remote lineage.
 async fn clones(State(state): State<AppState>) -> Result<Json<Vec<GfsDatabase>>, ApiError> {
     let all = list_databases(&state.docker).await?;
-    Ok(Json(all.into_iter().filter(|d| d.role == "clone").collect()))
+    Ok(Json(
+        all.into_iter().filter(|d| d.role == "clone").collect(),
+    ))
 }
 
 /// `GET /api/telemetry` — proxy Prometheus metrics + live `/clones` map.

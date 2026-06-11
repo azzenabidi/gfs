@@ -105,9 +105,8 @@ pub async fn clone(
             cyan(output.remote)
         );
         println!(
-            "    {:<16} {}",
-            dimmed("Mode"),
-            "copy-on-read (data fetched on first read)"
+            "    {:<16} copy-on-read (data fetched on first read)",
+            dimmed("Mode")
         );
     }
     if !output.stderr.is_empty() {
@@ -158,7 +157,8 @@ fn parse_postgres_url(url: &str) -> Result<RemoteSource, CmdError> {
     let (host, port) = match hostport.rsplit_once(':') {
         Some((h, p)) => (
             h.to_string(),
-            p.parse::<u16>().map_err(|_| format!("invalid port: '{p}'"))?,
+            p.parse::<u16>()
+                .map_err(|_| format!("invalid port: '{p}'"))?,
         ),
         None => (hostport.to_string(), 5432),
     };
@@ -214,7 +214,10 @@ mod tests {
             .unwrap();
         assert_eq!(r.port, 5432);
         assert_eq!(r.password, "");
-        assert_eq!(r.schemas, vec!["reporting".to_string(), "staging".to_string()]);
+        assert_eq!(
+            r.schemas,
+            vec!["reporting".to_string(), "staging".to_string()]
+        );
         assert_eq!(r.dbname, "analytics");
     }
 

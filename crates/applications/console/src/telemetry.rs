@@ -48,9 +48,10 @@ pub async fn snapshot(client: &reqwest::Client, proxy_url: &str) -> TelemetrySna
 
 async fn fetch_clones(client: &reqwest::Client, base: &str) -> serde_json::Value {
     match client.get(format!("{base}/clones")).send().await {
-        Ok(resp) => resp.json::<serde_json::Value>().await.unwrap_or_else(|_| {
-            serde_json::json!({ "clones": [] })
-        }),
+        Ok(resp) => resp
+            .json::<serde_json::Value>()
+            .await
+            .unwrap_or_else(|_| serde_json::json!({ "clones": [] })),
         Err(_) => serde_json::json!({ "clones": [] }),
     }
 }
@@ -90,7 +91,11 @@ fn parse_prometheus(body: &str) -> Vec<Metric> {
             }
             None => (series.to_string(), Default::default()),
         };
-        out.push(Metric { name, labels, value });
+        out.push(Metric {
+            name,
+            labels,
+            value,
+        });
     }
     out
 }
@@ -103,10 +108,7 @@ fn parse_labels(s: &str) -> std::collections::BTreeMap<String, String> {
             continue;
         }
         if let Some((k, v)) = pair.split_once('=') {
-            map.insert(
-                k.trim().to_string(),
-                v.trim().trim_matches('"').to_string(),
-            );
+            map.insert(k.trim().to_string(), v.trim().trim_matches('"').to_string());
         }
     }
     map

@@ -67,11 +67,7 @@ fn get(repo_path: &std::path::Path, key: &str) -> Result<()> {
     };
 
     if let Some(name) = key.strip_prefix(COMPUTE_PARAM_PREFIX) {
-        if let Some(v) = config
-            .compute
-            .as_ref()
-            .and_then(|c| c.params.get(name))
-        {
+        if let Some(v) = config.compute.as_ref().and_then(|c| c.params.get(name)) {
             print!("{v}");
         }
         return Ok(());

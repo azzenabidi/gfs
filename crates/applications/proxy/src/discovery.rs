@@ -136,10 +136,7 @@ async fn reconcile(docker: &Docker, cfg: &Config, registry: &Shared) -> anyhow::
             .and_then(|n| n.first())
             .map(|n| n.trim_start_matches('/').to_string())
             .unwrap_or_else(|| id.clone());
-        let remote = c
-            .labels
-            .as_ref()
-            .and_then(|l| l.get("gfs.remote").cloned());
+        let remote = c.labels.as_ref().and_then(|l| l.get("gfs.remote").cloned());
 
         start_clone(cfg, registry, id, name, host_port, remote);
     }

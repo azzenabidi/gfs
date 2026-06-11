@@ -71,7 +71,9 @@ pub async fn connect_backend(
     let mut resp = [0u8; 1];
     tcp.read_exact(&mut resp).await?;
     if resp[0] != b'S' {
-        return Err(io::Error::other("backend refused TLS (SSLRequest not accepted)"));
+        return Err(io::Error::other(
+            "backend refused TLS (SSLRequest not accepted)",
+        ));
     }
     let server_name = ServerName::try_from(domain.to_string())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid backend TLS domain"))?;

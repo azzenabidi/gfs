@@ -45,7 +45,15 @@ impl Drop for Cleanup {
 fn psql_remote(query: &str) -> String {
     let out = runtime_command()
         .args([
-            "exec", REMOTE_NAME, "psql", "-U", "postgres", "-d", "shop", "-tAc", query,
+            "exec",
+            REMOTE_NAME,
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "shop",
+            "-tAc",
+            query,
         ])
         .output()
         .expect("psql on remote");
@@ -64,9 +72,13 @@ fn e2e_clone_postgres() {
     // The planner-hook clone needs the gfs extension image; skip (don't fail) if absent.
     let img_ok = runtime_command()
         .args(["image", "inspect", "gfs-postgres:16"])
-        .output().map(|o| o.status.success()).unwrap_or(false);
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     if !img_ok {
-        eprintln!("SKIP: image gfs-postgres:16 absent — build: docker build -t gfs-postgres:16 crates/extensions/gfs");
+        eprintln!(
+            "SKIP: image gfs-postgres:16 absent — build: docker build -t gfs-postgres:16 crates/extensions/gfs"
+        );
         return;
     }
     let repo = TempDir::new().expect("temp repo");
@@ -80,10 +92,16 @@ fn e2e_clone_postgres() {
     let _ = runtime_command().args(["rm", "-f", REMOTE_NAME]).output();
     let started = runtime_command()
         .args([
-            "run", "-d", "--name", REMOTE_NAME,
-            "-e", "POSTGRES_PASSWORD=postgres",
-            "-e", "POSTGRES_DB=shop",
-            "-p", "127.0.0.1::5432",
+            "run",
+            "-d",
+            "--name",
+            REMOTE_NAME,
+            "-e",
+            "POSTGRES_PASSWORD=postgres",
+            "-e",
+            "POSTGRES_DB=shop",
+            "-p",
+            "127.0.0.1::5432",
             "postgres:16",
         ])
         .output()
@@ -110,7 +128,15 @@ fn e2e_clone_postgres() {
     let deadline = Instant::now() + Duration::from_secs(60);
     loop {
         let ready = runtime_command()
-            .args(["exec", REMOTE_NAME, "pg_isready", "-U", "postgres", "-d", "shop"])
+            .args([
+                "exec",
+                REMOTE_NAME,
+                "pg_isready",
+                "-U",
+                "postgres",
+                "-d",
+                "shop",
+            ])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
@@ -128,7 +154,19 @@ fn e2e_clone_postgres() {
                 GRANT USAGE ON SCHEMA public TO gfs_reader; \
                 GRANT SELECT ON ALL TABLES IN SCHEMA public TO gfs_reader;";
     let seeded = runtime_command()
-        .args(["exec", REMOTE_NAME, "psql", "-U", "postgres", "-d", "shop", "-v", "ON_ERROR_STOP=1", "-c", seed])
+        .args([
+            "exec",
+            REMOTE_NAME,
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "shop",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-c",
+            seed,
+        ])
         .output()
         .expect("seed remote");
     assert!(
@@ -168,17 +206,26 @@ fn e2e_clone_postgres() {
     // gfs.clone_source; there is no overlay view and no gfs_sync schema. Reads are
     // copy-on-read and return the source's data.
     assert_eq!(
-        psql_gfs(&gfs_container, "SELECT relkind FROM pg_class WHERE relname='orders' AND relnamespace='public'::regnamespace"),
+        psql_gfs(
+            &gfs_container,
+            "SELECT relkind FROM pg_class WHERE relname='orders' AND relnamespace='public'::regnamespace"
+        ),
         "r",
         "public.orders should be the real local table"
     );
     assert_eq!(
-        psql_gfs(&gfs_container, "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'gfs_ovl__%'"),
+        psql_gfs(
+            &gfs_container,
+            "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'gfs_ovl__%'"
+        ),
         "0",
         "the removed overlay-view schema must not exist"
     );
     assert_eq!(
-        psql_gfs(&gfs_container, "SELECT count(*) FROM gfs.clone_source WHERE relid::text='orders'"),
+        psql_gfs(
+            &gfs_container,
+            "SELECT count(*) FROM gfs.clone_source WHERE relid::text='orders'"
+        ),
         "1",
         "orders should be registered in gfs.clone_source"
     );
@@ -193,17 +240,29 @@ fn e2e_clone_postgres() {
     );
 
     // Local write → diverges locally, remote stays untouched (write-safety guard).
-    psql_gfs(&gfs_container, "UPDATE orders SET customer='LOCAL' WHERE id=42");
+    psql_gfs(
+        &gfs_container,
+        "UPDATE orders SET customer='LOCAL' WHERE id=42",
+    );
     assert_eq!(
         psql_gfs(&gfs_container, "SELECT customer FROM orders WHERE id=42"),
         "LOCAL",
         "local update should be visible on the clone"
     );
-    psql_gfs(&gfs_container, "INSERT INTO orders (id,customer,amount) VALUES (99999,'NEW',1.0)");
-    assert_eq!(psql_gfs(&gfs_container, "SELECT count(*) FROM orders"), "1001");
+    psql_gfs(
+        &gfs_container,
+        "INSERT INTO orders (id,customer,amount) VALUES (99999,'NEW',1.0)",
+    );
+    assert_eq!(
+        psql_gfs(&gfs_container, "SELECT count(*) FROM orders"),
+        "1001"
+    );
 
     // The remote must be untouched by the local writes.
-    assert_eq!(psql_remote("SELECT customer FROM orders WHERE id=42"), "cust_42");
+    assert_eq!(
+        psql_remote("SELECT customer FROM orders WHERE id=42"),
+        "cust_42"
+    );
     assert_eq!(psql_remote("SELECT count(*) FROM orders"), "1000");
 
     // cleanup runs on drop (gfs container + remote + repo)
