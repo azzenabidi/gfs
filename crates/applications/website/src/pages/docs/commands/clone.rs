@@ -10,10 +10,11 @@ pub fn CommandClone() -> impl IntoView {
 
             <p>
                 "Clone a remote database "<strong>"instantly"</strong>": only the schema is mirrored up front, "
-                "no data is moved. Reads are served live from the remote until rows are written or warmed "
-                "locally; "<strong>"writes always stay local"</strong>", so the clone diverges from the remote "
-                "(Git's "<code>"clone"</code>" semantics for databases). The remote is accessed "
-                <strong>"read-only"</strong>" ("<code>"SELECT"</code>" only): nothing is created on it."
+                "no data is moved. Data is fetched from the remote the first time a query needs it "
+                "("<strong>"copy-on-read"</strong>") and kept locally; "<strong>"writes always stay local"</strong>", "
+                "so the clone diverges from the remote (Git's "<code>"clone"</code>" semantics for databases). "
+                "The remote is accessed "<strong>"read-only"</strong>" ("<code>"SELECT"</code>" only): nothing is "
+                "created on it."
             </p>
 
             <h2>"Usage"</h2>
@@ -31,11 +32,22 @@ pub fn CommandClone() -> impl IntoView {
 
             <h2>"How it works"</h2>
             <p>
-                "Each cloned table becomes an updatable "<strong>"view"</strong>" that unions a local store "
-                "with the remote (via "<code>"postgres_fdw"</code>"), where local always wins. "
-                "Selective reads push their predicate to the remote (only matching rows are fetched). "
-                "Writes go through "<code>"INSTEAD OF"</code>" triggers into the local store; deletes are "
-                "tombstoned. Correctness holds by construction: aggregates like "<code>"count(*)"</code>" are exact."
+                "Each cloned table is a "<strong>"real, empty table"</strong>" with the source's schema and "
+                "indexes — the app cannot tell the clone from an ordinary database. An embedded PostgreSQL "
+                "extension (a planner hook) routes every query with a cost model:"
+            </p>
+            <ul>
+                <li><strong>"Hydrate"</strong>" - a read that bounds the table's key fetches the missing rows once into the local table, then runs on local indexes. Asking again touches no source."</li>
+                <li><strong>"Partial"</strong>" - a selective predicate on a table too big to copy whole fetches only the matching slice (capped); a repeat is served locally."</li>
+                <li><strong>"Federate"</strong>" - joins and aggregates with no key bound are pushed whole to the source (via "<code>"postgres_fdw"</code>"); only the result comes back, nothing is materialized locally."</li>
+                <li><strong>"Owned"</strong>" - once a table is fully materialized (reads filled it in, or it was force-warmed), it is served locally forever - no source contact."</li>
+            </ul>
+            <p>
+                "The router's cost weights are "<strong>"measured"</strong>" from the source link at clone "
+                "time, and a per-clone token bucket rate-limits source contact so many clones cannot "
+                "overwhelm production. Correctness holds by construction: a scan is served locally only "
+                "when its rows are provably present, otherwise it reads the source - never a partial "
+                "result. Aggregates like "<code>"count(*)"</code>" are exact."
             </p>
 
             <h2>"Examples"</h2>
@@ -55,10 +67,11 @@ pub fn CommandClone() -> impl IntoView {
 
             <h2>"Notes & limitations"</h2>
             <ul>
-                <li>"Plain CRUD (SELECT/INSERT/UPDATE/DELETE) needs no application change."</li>
-                <li>"Untouched rows are read live from the remote (they reflect the current source). Rows you write (or warm) are frozen locally and stop tracking the remote (local wins). So it is a copy-on-write overlay, not a snapshot or a follower; if the remote changes, untouched and locally-frozen rows can be from different points in time."</li>
-                <li>"Cloned tables are views, so DDL ("<code>"ALTER TABLE"</code>", "<code>"CREATE INDEX"</code>", "<code>"TRUNCATE"</code>") and "<code>"SELECT … FOR UPDATE"</code>" are not supported on them; target the source or the local store."</li>
+                <li>"Plain CRUD (SELECT/INSERT/UPDATE/DELETE) needs no application change, and cloned tables are real tables: indexes and writes behave normally."</li>
+                <li>"Rows are frozen locally once read, written or warmed, and stop tracking the remote; untouched rows still reflect the live source. So it is a lazy working copy, not a snapshot or a follower: if the remote changes, fetched and untouched rows can be from different points in time."</li>
+                <li>"Foreign keys are dropped on the clone: rows arrive lazily table by table (a child can land before its parent), and the source already enforced them."</li>
                 <li>"Tables with no primary key or unique index are skipped."</li>
+                <li>"Tables whose types need an extension the local image lacks are skipped - pass "<code>"--image"</code>" with an image that ships it."</li>
                 <li>"Auto-increment works locally (sequences start past the remote max, so no key collisions)."</li>
             </ul>
 
