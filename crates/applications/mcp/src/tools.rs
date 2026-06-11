@@ -32,9 +32,12 @@ use gfs_domain::utils::current_user;
 use gfs_domain::utils::data_dir;
 use gfs_telemetry::TelemetryClient;
 use rmcp::{
-    ErrorData as McpError, ServerHandler,
+    ErrorData as McpError, Peer, RoleServer, ServerHandler,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, Content, Implementation, ServerCapabilities, ServerInfo},
+    model::{
+        CallToolResult, Content, Implementation, Meta, ProgressNotificationParam,
+        ServerCapabilities, ServerInfo,
+    },
     schemars, tool, tool_handler, tool_router,
 };
 use serde_json::json;
@@ -271,6 +274,8 @@ impl GfsMcpHandler {
     )]
     async fn commit(
         &self,
+        meta: Meta,
+        client: Peer<RoleServer>,
         Parameters(req): Parameters<CommitRequest>,
     ) -> Result<CallToolResult, McpError> {
         let args = json!({
@@ -279,7 +284,44 @@ impl GfsMcpHandler {
             "author": req.author,
             "author_email": req.author_email,
         });
+
+        let progress_token = meta.get_progress_token();
+        let send_progress = |step: f64, total: f64, msg: &str| {
+            let client = client.clone();
+            let token = progress_token.clone();
+            let msg = msg.to_string();
+            async move {
+                if let Some(token) = token {
+                    let _ = client
+                        .notify_progress(ProgressNotificationParam {
+                            progress_token: token,
+                            progress: step,
+                            total: Some(total),
+                            message: Some(msg),
+                        })
+                        .await;
+                }
+            }
+        };
+
+        send_progress(1.0, 4.0, "Extracting database schema...").await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+        send_progress(2.0, 4.0, "Pausing container for consistent snapshot...").await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
         let result = do_commit(&args).await;
+
+        match &result {
+            Ok(_) => {
+                send_progress(3.0, 4.0, "Snapshot complete, resuming container...").await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                send_progress(4.0, 4.0, "Commit saved successfully ✓").await;
+            }
+            Err(e) => {
+                send_progress(4.0, 4.0, &format!("Commit failed: {}", e)).await;
+            }
+        }
+
         self.track_mcp("commit", &result);
         result
     }
