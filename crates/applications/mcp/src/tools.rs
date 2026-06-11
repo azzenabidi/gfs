@@ -34,7 +34,10 @@ use gfs_telemetry::TelemetryClient;
 use rmcp::{
     ErrorData as McpError, Peer, RoleServer, ServerHandler,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, Content, Implementation, Meta, ProgressNotificationParam, ServerCapabilities, ServerInfo},
+    model::{
+        CallToolResult, Content, Implementation, Meta, ProgressNotificationParam,
+        ServerCapabilities, ServerInfo,
+    },
     schemars, tool, tool_handler, tool_router,
 };
 use serde_json::json;
@@ -294,7 +297,7 @@ impl GfsMcpHandler {
                             progress_token: token,
                             progress: step,
                             total: Some(total),
-                            message: Some(msg.into()),
+                            message: Some(msg),
                         })
                         .await;
                 }
@@ -313,7 +316,7 @@ impl GfsMcpHandler {
                 send_progress(3.0, 4.0, "Snapshot complete, resuming container...").await;
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                 send_progress(4.0, 4.0, "Commit saved successfully ✓").await;
-            },
+            }
             Err(e) => {
                 send_progress(4.0, 4.0, &format!("Commit failed: {}", e)).await;
             }
