@@ -11,7 +11,7 @@ use crate::base_plan;
 use crate::catalog::{
     bump_access, gfs_enqueue_copy, gfs_enqueue_partial, gfs_is_covered, gfs_lookup_clone,
     gfs_note_pred_seen, gfs_pred_count, gfs_pred_state, gfs_set_no_partial, gfs_throttle,
-    gfs_time_queued, gfs_whole_queued, relation_has_tombstones,
+    gfs_mark_local_write, gfs_time_queued, gfs_whole_queued, relation_diverged,
 };
 use crate::federate::swap_clone_rtes_to_foreign;
 use crate::hydrate::do_hydrate;
@@ -40,6 +40,13 @@ pub(crate) unsafe fn gfs_route(
     // whole-hydrates those tables LOCALLY, so the write applies to complete local
     // data with the source untouched. Only SELECT may federate.
     let is_write = !parse.is_null() && (*parse).commandType != pg_sys::CmdType::CMD_SELECT;
+    // Mark the write's target clone table as diverged so later queries do NOT federate
+    // it (a federated read runs at the source and cannot see this local INSERT/UPDATE/
+    // DELETE). This is a top-level user write: GFS's own hydration INSERTs run nested
+    // under the re-entrancy guard and never reach here, so they do not flag the table.
+    if is_write {
+        mark_write_target(parse);
+    }
     let stmt = base_plan(parse, qs, cursor, params); // cold plan, to inspect
 
     let mut ctx =
@@ -67,18 +74,21 @@ pub(crate) unsafe fn gfs_route(
     // incomplete result.
     if !ctx.federate_targets.is_empty() {
         // A federated swap runs the query at the SOURCE over the foreign tables, which
-        // cannot see local DELETE tombstones -> a row deleted on the clone would
-        // reappear in the result. If any target table has tombstones, do NOT swap;
-        // fall through to the tombstone-aware whole-own hydration below (do_hydrate
-        // excludes tombstoned rows), so local deletes are honored on the federate path.
-        // (Optimization TODO: inject a `NOT EXISTS gfs.tombstone` anti-join into the
-        // federated query instead of owning the table whole.)
-        let any_tombstoned = ctx
+        // cannot see local writes -> a federated result would MISS a local INSERT,
+        // return the STALE value of a local UPDATE, or RESURRECT a local DELETE. If any
+        // target table has diverged (local insert/update/delete), do NOT swap; fall
+        // through to the whole-own hydration below (do_hydrate copies the source with
+        // ON CONFLICT DO NOTHING + tombstone exclusion, preserving the local writes),
+        // so the clone's own state is honored on the federate path.
+        // (Optimization TODO: reconcile inside the federated query -- UNION local
+        // inserts, prefer local rows for updates, anti-join tombstones -- instead of
+        // owning the table whole.)
+        let any_diverged = ctx
             .federate_targets
             .iter()
-            .any(|t| unsafe { relation_has_tombstones(t.relid) });
+            .any(|t| unsafe { relation_diverged(t.relid) });
         if !is_write
-            && !any_tombstoned
+            && !any_diverged
             && !parse_copy.is_null()
             && swap_clone_rtes_to_foreign(parse_copy) > 0
         {
@@ -124,6 +134,26 @@ fn whole_of(h: &Hydration) -> Hydration {
         partial_cap: 0,
         time_key: false,
         key_type: String::new(),
+    }
+}
+
+// Flag the target table of a top-level write (INSERT/UPDATE/DELETE) as locally
+// diverged via its result relation, so later queries over it do not federate. No-op
+// for a non-clone target (the UPDATE in gfs_mark_local_write matches no row).
+unsafe fn mark_write_target(parse: *mut pg_sys::Query) {
+    if parse.is_null() {
+        return;
+    }
+    let ri = (*parse).resultRelation;
+    if ri <= 0 {
+        return;
+    }
+    if let Some(rte) =
+        PgList::<pg_sys::RangeTblEntry>::from_pg((*parse).rtable).get_ptr((ri - 1) as usize)
+    {
+        if !rte.is_null() && (*rte).rtekind == pg_sys::RTEKind::RTE_RELATION {
+            gfs_mark_local_write((*rte).relid);
+        }
     }
 }
 

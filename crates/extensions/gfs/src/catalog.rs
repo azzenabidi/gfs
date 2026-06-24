@@ -16,18 +16,22 @@ pub(crate) unsafe fn spi_text(p: *mut c_char) -> Option<String> {
     }
 }
 
-/// True iff this clone table has any copy-on-write DELETE tombstones. A federated
-/// swap runs the query at the SOURCE over the foreign tables, which cannot see the
-/// local `gfs.tombstone` table, so a row deleted on the clone would reappear in the
-/// result. The router therefore must NOT federate a table that has tombstones; it
-/// falls back to a tombstone-aware whole-own hydration instead (do_hydrate excludes
-/// them). Zero-cost lookup; the no-deletes case (the norm) returns false at once.
-pub(crate) unsafe fn relation_has_tombstones(relid: pg_sys::Oid) -> bool {
+/// True iff this clone table has DIVERGED from the source via any local write:
+/// an INSERT/UPDATE (flagged in `gfs.clone_source.has_local_writes`) or a DELETE
+/// (recorded in `gfs.tombstone`). A federated swap runs the query at the SOURCE over
+/// the foreign tables, which cannot see local writes, so a federated result would
+/// MISS a local insert, return the STALE value of a local update, or RESURRECT a
+/// local delete. The router therefore must NOT federate a diverged table; it falls
+/// back to a whole-own hydration (do_hydrate copies the source with ON CONFLICT DO
+/// NOTHING + tombstone exclusion, which preserves the local insert/update/delete) and
+/// serves local. Zero-cost lookup; an unmodified table (the norm) returns false.
+pub(crate) unsafe fn relation_diverged(relid: pg_sys::Oid) -> bool {
     if pg_sys::SPI_connect() != pg_sys::SPI_OK_CONNECT as i32 {
         return false;
     }
     let q = CString::new(format!(
-        "SELECT EXISTS(SELECT 1 FROM gfs.tombstone WHERE relid::oid = {})::int::text",
+        "SELECT (COALESCE((SELECT has_local_writes FROM gfs.clone_source WHERE relid::oid = {0}), false) \
+                 OR EXISTS(SELECT 1 FROM gfs.tombstone WHERE relid::oid = {0}))::int::text",
         u32::from(relid)
     ))
     .unwrap();
@@ -42,6 +46,24 @@ pub(crate) unsafe fn relation_has_tombstones(relid: pg_sys::Oid) -> bool {
     }
     pg_sys::SPI_finish();
     has
+}
+
+/// Flag a clone table as locally written (diverged) so future queries do not federate
+/// it. Called from the router when it plans a top-level INSERT/UPDATE/DELETE whose
+/// target is a registered clone. A no-op (0 rows) for unregistered relations; runs in
+/// the writing transaction, so a rolled-back write does not leave the flag set.
+pub(crate) unsafe fn gfs_mark_local_write(relid: pg_sys::Oid) {
+    if pg_sys::SPI_connect() != pg_sys::SPI_OK_CONNECT as i32 {
+        return;
+    }
+    let q = CString::new(format!(
+        "UPDATE gfs.clone_source SET has_local_writes = true \
+           WHERE relid::oid = {} AND NOT has_local_writes",
+        u32::from(relid)
+    ))
+    .unwrap();
+    pg_sys::SPI_execute(q.as_ptr(), false, 0);
+    pg_sys::SPI_finish();
 }
 
 pub(crate) unsafe fn gfs_lookup_clone(relid: pg_sys::Oid) -> Option<CloneInfo> {

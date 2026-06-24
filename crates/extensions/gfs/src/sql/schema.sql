@@ -11,7 +11,11 @@ CREATE TABLE gfs.clone_source (
     row_bytes    int      NOT NULL DEFAULT 100,      -- B: avg bytes/row
     access_count bigint   NOT NULL DEFAULT 0,        -- H: query frequency (amortization)
     partial_rows bigint   NOT NULL DEFAULT 0,        -- cumulative rows pulled by COMMITTED partial hydrations
-    no_partial   boolean  NOT NULL DEFAULT false     -- terminal: too big to own; federate per call, no more probes
+    no_partial   boolean  NOT NULL DEFAULT false,    -- terminal: too big to own; federate per call, no more probes
+    has_local_writes boolean NOT NULL DEFAULT false  -- set when a local INSERT/UPDATE/DELETE diverges this table from
+                                                     -- the source. A diverged table must NOT be federated (the source
+                                                     -- would not reflect the local write); the router whole-owns it and
+                                                     -- serves local instead. See gfs_mark_local_write / relation_diverged.
 );
 COMMENT ON TABLE gfs.clone_source IS 'Per clone table: source ref, range key, ownership, and cost-model stats';
 
